@@ -9,9 +9,12 @@ type SpellRow = object
   kind: string
   correction: string
 
+var testRows = fromCsv(content, seq[SpellRow])
+
 timeIt "tabby", 100:
-  var rows = formCSV(content, seq[SpellRow])
+  var rows = fromCsv(content, seq[SpellRow])
   keep(rows)
+  doAssert testRows == rows
 
 timeIt "parsecsv", 100:
   var
@@ -21,14 +24,13 @@ timeIt "parsecsv", 100:
   p.open(strm, "tmp.csv")
   p.readHeaderRow()
   while p.readRow():
-    for col in items(p.headers):
-      rows.add SpellRow(
-        filenameId: parseInt(p.row[0]),
-        offsetSpan: p.row[1],
-        misspelling: p.row[2],
-        kind: p.row[3],
-        correction: p.row[4]
-      )
+    rows.add SpellRow(
+      filenameId: parseInt(p.row[0]),
+      offsetSpan: p.row[1],
+      misspelling: p.row[2],
+      kind: p.row[3],
+      correction: p.row[4]
+    )
   p.close()
-
   keep(rows)
+  doAssert testRows == rows
