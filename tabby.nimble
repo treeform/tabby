@@ -1,6 +1,6 @@
 version     = "0.0.0"
-author      = "Your name"
-description = "Description of your library"
+author      = "Andre von Houck"
+description = "Direct to object CSV/TSV/tabulated data parser with hooks."
 license     = "MIT"
 
 srcDir = "src"

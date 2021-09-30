@@ -27,7 +27,7 @@ the,23135851162
 of,13151942776
 and,12997637966
 ```
-And a nim object that has the correct schema:
+And a Nim object that has the correct schema:
 ```nim
   type FreqRow = object
     word: string
