@@ -1,5 +1,15 @@
 # Tabby - Direct to object CSV/TSV/tabulated data parser with hooks.
 
+`nimble install tabby`
+
+![Github Actions](https://github.com/treeform/tabby/workflows/Github%20Actions/badge.svg)
+
+[API reference](https://nimdocs.com/treeform/tabby)
+
+This library has no dependencies other than the Nim standard libarary.
+
+## About
+
 This library is still in development and is not ready to be used.
 
 This library parses `.csv` files directly into nim objects. This is different from how Nim's standard library [parsecsv](https://nim-lang.org/docs/parsecsv.html) works which first parses them into an intermediate representation. This make `tabby` faster by generating less memory allocations.
@@ -27,7 +37,7 @@ the,23135851162
 of,13151942776
 and,12997637966
 ```
-And a Nim object that has the correct schema:
+And a nim object that has the correct schema:
 ```nim
   type FreqRow = object
     word: string
