@@ -7,6 +7,7 @@ type ParseContext = ref object
   i: int
   data: string
   newLine: string
+  sep: char
 
 template error(msg: string, i: int) =
   ## Shortcut to raise an exception.
@@ -22,13 +23,17 @@ proc skipSpaces(p: ParseContext) =
     inc p.i
 
 proc skipSep(p: ParseContext) =
-  while p.i < p.data.len and p.data[p.i] == ',':
+  if p.i < p.data.len and p.data[p.i] == '\n':
+    return
+  elif p.i < p.data.len and p.data[p.i] == p.sep:
     inc p.i
+  else:
+    error("Failed to parse, seperator expected.", p.i)
 
 proc parseHook(p: ParseContext, v: var string) =
   p.skipSpaces()
   let start = p.i
-  while p.i < p.data.len and p.data[p.i] notin {',', '\n'}:
+  while p.i < p.data.len and p.data[p.i] notin {p.sep, '\n'}:
     inc p.i
   v = p.data[start ..< p.i]
 
@@ -40,20 +45,22 @@ proc parseHook(p: ParseContext, v: var SomeInteger) =
   p.i += chars
   v = num
 
-proc formCSV*[T](
+proc fromCsv*[T](
   data: string,
   objType: type[seq[T]],
-  skipHeader = true
-  # header=Ditect,
-  # seperator=Ditect
+  skipHeader = false, # swtich to true
+  useTab = false,
   # newLine=Ditect,
 ): seq[T] =
-
+  ## Read un data seq as a CSV.
   var p = ParseContext()
   p.newLine = "\n"
   p.data = data
+  p.sep = ','
+  if useTab:
+    p.sep = '\t'
 
-  if skipHeader:
+  if not skipHeader:
     p.skipLine()
 
   while p.i < p.data.len:
@@ -63,3 +70,28 @@ proc formCSV*[T](
       p.skipSep()
     result.add(currentRow)
     p.skipLine()
+
+proc toCsv*[T](
+  data: seq[T],
+  skipHeader = false,
+  useTab = false,
+): string =
+  ## Writes out data seq as a CSV.
+  var seperator = ","
+  if useTab:
+    seperator = "\t"
+
+  if not skipHeader:
+    var headerRow = T()
+    for name, field in headerRow.fieldPairs:
+      result.add name
+      result.add seperator
+    result.removeSuffix(seperator)
+    result.add("\n")
+
+  for row in data:
+    for name, field in row.fieldPairs:
+      result.add $field
+      result.add seperator
+    result.removeSuffix(seperator)
+    result.add("\n")
