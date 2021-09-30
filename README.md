@@ -1,6 +1,6 @@
 # Tabby - Direct to object CSV/TSV/tabulated data parser with hooks.
 
-This library parses `.csv` files directly into nim objects. This is different from how Nim's standard library [parsecsv](https://nim-lang.org/docs/parsecsv.html) works which first parses them into an intermediate representation. This make `tabby` faster by generating less memory allocations.
+This library parses `.csv` files directly into Nim objects. This is different from how Nim's standard library [parsecsv](https://nim-lang.org/docs/parsecsv.html) works which first parses them into an intermediate representation. This make `tabby` faster by generating less memory allocations.
 
 This is similar to my other [jsony](https://github.com/treeform/jsony) project that is for `json`, except this `.csv` files.
 
@@ -23,7 +23,7 @@ the,23135851162
 of,13151942776
 and,12997637966
 ```
-And a nim object that has the correct schema:
+And a Nim object that has the correct schema:
 ```nim
   type FreqRow = object
     word: string
