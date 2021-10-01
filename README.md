@@ -46,5 +46,5 @@ And a nim object that has the correct schema:
 
 Then simply read in the data:
 ```nim
-  var rows = tabby.formCSV(csvData, seq[FreqRow])
+  var rows = tabby.fromCsv(csvData, seq[FreqRow])
 ```
