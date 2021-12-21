@@ -7,22 +7,31 @@ type ParseContext = ref object
   i: int
   header: seq[string]
   data: string
-  newLine: string
-  sep: char
+  lineEnd: string
+  separator: string
 
 template error(msg: string, i: int) =
   ## Shortcut to raise an exception.
   raise newException(TabbyError, msg & " At offset: " & $i)
 
-proc atNewLine(p: ParseContext): bool =
-  ## Tests if the parser context is at a new line.
-  return p.data[p.i] != '\n'
+# proc atlineEnd(p: ParseContext): bool =
+#   ## Tests if the parser context is at a new line.
+#   return p.data[p.i] != '\n'
+
+proc isNext(p: ParseContext, str: string): bool =
+  ## Tests if the a str comes next.
+  for i, c in str:
+    if p.i + i >= p.data.len:
+      return false
+    if p.data[p.i + i] != c:
+      return false
+  return true
 
 proc skipLine(p: ParseContext) =
   ## Skips this line.
-  let at = p.data.find(p.newLine, p.i)
+  let at = p.data.find(p.lineEnd, p.i)
   if at != -1:
-    p.i = at + p.newLine.len
+    p.i = at + p.lineEnd.len
 
 proc skipSpaces(p: ParseContext) =
   ## Skips spaces to next token.
@@ -31,16 +40,18 @@ proc skipSpaces(p: ParseContext) =
 
 proc skipSep(p: ParseContext) =
   ## Skips current separator.
-  if p.i < p.data.len and p.data[p.i] == '\n':
+  if p.i < p.data.len and p.isNext(p.lineEnd):
     return
-  elif p.i < p.data.len and p.data[p.i] == p.sep:
-    inc p.i
+  elif p.i < p.data.len and p.isNext(p.separator):
+    p.i += p.separator.len
   else:
-    error(&"Failed to parse, separator expected, got: {p.data[p.i]}.", p.i)
+    if p.i >= p.data.len:
+      error(&"Failed to parse, end of data reached.", p.i)
+    else:
+      error(&"Failed to parse, separator expected, got: {p.data[p.i]}.", p.i)
 
 proc parseHook(p: ParseContext, v: var string) =
   ## Parse hook for string.
-  p.skipSpaces()
   let start = p.i
   if p.data[p.i] in {'"', '\''}:
     # "quoted string"
@@ -66,7 +77,7 @@ proc parseHook(p: ParseContext, v: var string) =
     inc p.i
   else:
     # plain string
-    while p.i < p.data.len and p.data[p.i] notin {p.sep, '\n'}:
+    while p.i < p.data.len and not (p.isNext(p.separator) or p.isNext(p.lineEnd) or p.isNext(" ")):
       inc p.i
     v = p.data[start ..< p.i]
 
@@ -90,9 +101,10 @@ proc fromCsv*[T](
   objType: type[seq[T]],
   header = newSeq[string](),
   hasHeader = true,
-  useTab = false
+  lineEnd = "\n",
+  separator = ","
 ): seq[T] =
-  ## Read un data seq as a CSV.
+  ## Read data seq as a CSV.
   ## * header - use this header to parse
   ## * hasHeader - does the current data have a header,
   ##   will be skipped if header is set.
@@ -101,15 +113,15 @@ proc fromCsv*[T](
   p.data = data
   p.header = header
   var userHeader = header.len != 0
-  p.newLine = "\n"
-  p.sep = ','
-  if useTab:
-    p.sep = '\t'
+  p.lineEnd = lineEnd
+  p.separator = separator
 
   if hasHeader:
-    while p.atNewLine():
+    while not p.isNext(p.lineEnd):
       var name: string
+      p.skipSpaces()
       p.parseHook(name)
+      p.skipSpaces()
       if not userHeader:
         p.header.add(name)
       p.skipSep()
@@ -119,78 +131,102 @@ proc fromCsv*[T](
       for name, field in T().fieldPairs:
         p.header.add(name)
 
+  doAssert p.header.len != 0
+
   while p.i < p.data.len:
     var currentRow = T()
     for headerName in p.header:
       for name, field in currentRow.fieldPairs:
         if headerName == name:
+          p.skipSpaces()
           parseHook(p, field)
+          p.skipSpaces()
+          if p.i == p.data.len:
+            result.add(currentRow)
+            return
           p.skipSep()
+          break
     result.add(currentRow)
     p.skipLine()
 
-proc dumpHook(s: var string, v: string) =
+
+type PrintContext = ref object
+  header: seq[string]
+  data: string
+  lineEnd: string
+  separator: string
+  quote: char
+
+proc dumpHook(p: PrintContext, v: string) =
   var needsQuote = false
   for c in v:
     if c in {' ', '\t', '\n', '\r', '\\', ',', '\'', '"'}:
       needsQuote = true
       break
   if needsQuote:
-    s.add '"'
+    p.data.add p.quote
     for c in v:
       case c:
-      of '\\': s.add r"\\"
-      of '\b': s.add r"\b"
-      of '\f': s.add r"\f"
-      of '\n': s.add r"\n"
-      of '\r': s.add r"\r"
-      of '\t': s.add r"\t"
-      of '"': s.add r"\"""
+      of '\\': p.data.add r"\\"
+      of '\b': p.data.add r"\b"
+      of '\f': p.data.add r"\f"
+      of '\n': p.data.add r"\n"
+      of '\r': p.data.add r"\r"
+      of '\t': p.data.add r"\t"
+      of '"': p.data.add r"\"""
+      of '\'': p.data.add r"\'"
       else:
-        s.add c
-    s.add '"'
+        p.data.add c
+    p.data.add p.quote
   else:
-    s.add v
+    p.data.add v
 
-proc dumpHook[T](s: var string, v: T) =
-  s.add $v
+proc dumpHook[T](p: PrintContext, v: T) =
+  p.data.add $v
 
 proc toCsv*[T](
   data: seq[T],
   header = newSeq[string](),
   hasHeader = true,
-  useTab = false,
+  lineEnd = "\n",
+  separator = ",",
+  quote = '"'
 ): string =
   ## Writes out data seq as a CSV.
   ## * header - use this header to write fields in specific order.
   ## * hasHeader - should header row be written.
-  var separator = ","
-  if useTab:
-    separator = "\t"
+  var p = PrintContext()
+  p.header = header
+  p.lineEnd = lineEnd
+  p.separator = separator
+  p.quote = quote
 
-  var header = header
-  if header.len == 0:
+  if p.header.len == 0:
     for name, field in T().fieldPairs:
-      header.add(name)
+      p.header.add(name)
 
   if hasHeader:
-    for name in header:
-      result.dumpHook(name)
-      result.add separator
-    result.removeSuffix(separator)
-    result.add("\n")
+    for name in p.header:
+      p.dumpHook(name)
+      p.data.add p.separator
+    p.data.removeSuffix(p.separator)
+    p.data.add(p.lineEnd)
+
+  doAssert p.header.len != 0
 
   for row in data:
-    for headerName in header:
+    for headerName in p.header:
       var found = false
       for name, field in row.fieldPairs:
         if headerName == name:
-          result.dumpHook(field)
-          result.add separator
+          p.dumpHook(field)
+          p.data.add p.separator
           found = true
           break
       if not found:
-        result.add separator
+        p.data.add p.separator
 
-    result.removeSuffix(separator)
-    result.add("\n")
+    p.data.removeSuffix(p.separator)
+    p.data.add(p.lineEnd)
+
+  return p.data
