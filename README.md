@@ -1,4 +1,4 @@
-# Tabby - Direct to object CSV/TSV/tabulated data parser with hooks.
+# Tabby - Fast CSV parser with hooks.
 
 `nimble install tabby`
 
@@ -21,9 +21,7 @@ and back:
 echo rows.toCsv()
 ```
 
-
-
-Tabby also supports arbitrary delimiters. Not only standard `tab` and `,` with linux `\n` and windows `\r\n` line endings, but any delimiter can be used. It's trivial to convert your data to and from any tabular format. Just pass them:
+Tabby also supports arbitrary delimiters. Not only standard tab `\t` and `,` with linux `\n` and windows `\r\n` line endings, but any delimiter can be used. It's trivial to convert your data to and from any tabular format:
 ```nim
 strData.fromCsv(seq[RowObj], separator = ":", lineEnd = ";")
 ```
@@ -32,15 +30,6 @@ Tabby can also guess delimiters with `fromCsvGuess()` function.
 
 This library is similar to my other [jsony](https://github.com/treeform/jsony) project that is for `json`, if you like `jsony` you should like `tabby`.
 
-## Speed
-
-Even though tabby does not allocate intermediate objects, it does use header and field re-ordering, and parse and dump hooks, which makes makes it speed close to `std/parcecsv` but with much simpler API.
-
-```
-name ............................... min time      avg time    std dv   runs
-tabby ............................ 134.951 ms    141.897 ms    ±7.301   x100
-parsecsv ......................... 129.861 ms    136.086 ms    ±7.026   x100
-```
 
 ## How to use
 
@@ -74,11 +63,18 @@ var
 p.open(strm, "tmp.csv")
 p.readHeaderRow()
 while p.readRow():
-  rows.add FreqRow(
-    word: p.row[0],
-    count: parseInt(p.row[1])
-  )
+  rows.add FreqRow(word: p.row[0], count: parseInt(p.row[1]))
 p.close()
+```
+
+## Speed
+
+Even though tabby does not allocate intermediate objects, it does use header and field re-ordering, and parse and dump hooks, which makes makes it speed close to `std/parcecsv` but with much simpler API.
+
+```
+name ............................... min time      avg time    std dv   runs
+tabby ............................ 134.951 ms    141.897 ms    ±7.301   x100
+parsecsv ......................... 129.861 ms    136.086 ms    ±7.026   x100
 ```
 
 ## Prase Hooks
