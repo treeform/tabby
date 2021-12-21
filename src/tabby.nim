@@ -3,12 +3,12 @@ import strutils, parseutils, strformat
 
 type TabbyError* = object of ValueError
 
-type ParseContext = ref object
-  i: int
-  header: seq[string]
-  data: string
-  lineEnd: string
-  separator: string
+type ParseContext* = ref object
+  i*: int
+  header*: seq[string]
+  data*: string
+  lineEnd*: string
+  separator*: string
 
 template error(msg: string, i: int) =
   ## Shortcut to raise an exception.
@@ -50,7 +50,7 @@ proc skipSep(p: ParseContext) =
     else:
       error(&"Failed to parse, separator expected, got: {p.data[p.i]}.", p.i)
 
-proc parseHook(p: ParseContext, v: var string) =
+proc parseHook*(p: ParseContext, v: var string) =
   ## Parse hook for string.
   let start = p.i
   if p.data[p.i] in {'"', '\''}:
@@ -81,7 +81,7 @@ proc parseHook(p: ParseContext, v: var string) =
       inc p.i
     v = p.data[start ..< p.i]
 
-proc parseHook(p: ParseContext, v: var SomeInteger) =
+proc parseHook*(p: ParseContext, v: var SomeInteger) =
   ## Parse hook for integer.
   var num: int
   let chars = parseutils.parseInt(p.data, num, p.i)
@@ -90,11 +90,41 @@ proc parseHook(p: ParseContext, v: var SomeInteger) =
   p.i += chars
   v = num
 
-proc parseHook(p: ParseContext, v: var bool) =
+proc parseHook*(p: ParseContext, v: var bool) =
   ## Parse hook for boolean.
   var str: string
   p.parseHook(str)
   v = str.toLowerAscii() == "true"
+
+proc fromCsvFast*[T](
+  data: string,
+  objType: type[seq[T]],
+  hasHeader = true,
+  lineEnd = "\n",
+  separator = ","
+): seq[T] =
+  ## Read data seq as a CSV.
+  ## Objects schema must match CSV schema.
+  ## * hasHeader - should header be skipped.
+  ##   will be skipped if header is set.
+  var p = ParseContext()
+  p.data = data
+  p.lineEnd = lineEnd
+  p.separator = separator
+
+  if hasHeader:
+    p.skipLine()
+
+  while p.i < p.data.len:
+    var currentRow = T()
+    for name, field in currentRow.fieldPairs:
+      parseHook(p, field)
+      if p.i == p.data.len:
+        result.add(currentRow)
+        return
+      p.skipSep()
+    result.add(currentRow)
+    p.skipLine()
 
 proc fromCsv*[T](
   data: string,
@@ -108,7 +138,7 @@ proc fromCsv*[T](
   ## * header - use this header to parse
   ## * hasHeader - does the current data have a header,
   ##   will be skipped if header is set.
-  ## * useTab - use tabs instead of commas.
+
   var p = ParseContext()
   p.data = data
   p.header = header
@@ -149,15 +179,32 @@ proc fromCsv*[T](
     result.add(currentRow)
     p.skipLine()
 
+proc fromCsvGuess*[T](
+  data: string,
+  objType: type[seq[T]],
+  header = newSeq[string](),
+  hasHeader = true,
+): seq[T] =
+  ## Read data seq as a CSV.
+  ## Tries to guess what separators or lineEnds are used.
 
-type PrintContext = ref object
-  header: seq[string]
-  data: string
-  lineEnd: string
-  separator: string
-  quote: char
+  var separator = ","
+  if data.count("\t") > data.count(","):
+    separator = "\t"
+  var lineEnd = "\n"
+  if data.count("\r\n") > data.count("\n") div 2:
+    lineEnd = "\r\n"
 
-proc dumpHook(p: PrintContext, v: string) =
+  return data.fromCsv(objType, header, hasHeader, lineEnd, separator)
+
+type PrintContext* = ref object
+  header*: seq[string]
+  data*: string
+  lineEnd*: string
+  separator*: string
+  quote*: char
+
+proc dumpHook*(p: PrintContext, v: string) =
   var needsQuote = false
   for c in v:
     if c in {' ', '\t', '\n', '\r', '\\', ',', '\'', '"'}:
@@ -181,7 +228,7 @@ proc dumpHook(p: PrintContext, v: string) =
   else:
     p.data.add v
 
-proc dumpHook[T](p: PrintContext, v: T) =
+proc dumpHook*[T](p: PrintContext, v: T) =
   p.data.add $v
 
 proc toCsv*[T](

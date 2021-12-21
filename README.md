@@ -10,41 +10,114 @@ This library has no dependencies other than the Nim standard library.
 
 ## About
 
-This library is still in development and is not ready to be used.
+This library parses `.csv` or `.tsv` files directly into Nim objects. This is different from how Nim's standard library [parsecsv](https://nim-lang.org/docs/parsecsv.html) works which first parses them into an intermediate representation. This makes `tabby` generate fewer memory allocations.
 
-This library parses `.csv` files directly into Nim objects. This is different from how Nim's standard library [parsecsv](https://nim-lang.org/docs/parsecsv.html) works which first parses them into an intermediate representation. This makes `tabby` faster by generating fewer memory allocations.
+Tabby also has a simpler API and is easier to use with just two calls `fromCsv`/`toCsv`:
+```nim
+let rows = strData.fromCsv(seq[RowObj])
+```
+and back:
+```nim
+echo rows.toCsv()
+```
 
-Tabby is also a simpler API and is easier to use with just two calls `fromCsv()/toCsv()`. It's trivial to convert your data to and from tabular format.
 
-This is similar to my other [jsony](https://github.com/treeform/jsony) project that is for `json`, except this library is for `.csv` files.
+
+Tabby also supports arbitrary delimiters. Not only standard `tab` and `,` with linux `\n` and windows `\r\n` line endings, but any delimiter can be used. It's trivial to convert your data to and from any tabular format. Just pass them:
+```nim
+strData.fromCsv(seq[RowObj], separator = ":", lineEnd = ";")
+```
+
+Tabby can also guess delimiters with `fromCsvGuess()` function.
+
+This library is similar to my other [jsony](https://github.com/treeform/jsony) project that is for `json`, if you like `jsony` you should like `tabby`.
 
 ## Speed
 
-Because tabby does not allocate intermediate objects, it is much faster and a lot less code.
+Even though tabby does not allocate intermediate objects, it does use header and field re-ordering, and parse and dump hooks, which makes makes it speed close to `std/parcecsv` but with much simpler API.
 
 ```
 name ............................... min time      avg time    std dv   runs
-tabby .............................. 2.164 ms      2.220 ms    ±0.118   x100
-parsecsv ........................... 2.949 ms      2.971 ms    ±0.019   x100
+tabby ............................ 134.951 ms    141.897 ms    ±7.301   x100
+parsecsv ......................... 129.861 ms    136.086 ms    ±7.026   x100
 ```
 
 ## How to use
 
-You need to have CSV data:
+You need to have CSV strData:
 ```
 word,count
 the,23135851162
 of,13151942776
 and,12997637966
 ```
-And a Nim object that has the correct schema:
+And a regular Nim object to parse into to:
 ```nim
-  type FreqRow = object
-    word: string
-    count: int
+type FreqRow = object
+  word: string
+  count: int
 ```
 
 Then simply read in the data:
+
 ```nim
-  var rows = tabby.fromCsv(csvData, seq[FreqRow])
+var rows = strData.fromCsv(seq[FreqRow])
+```
+
+Compare this single line with confusing but equivalent `std/parcecsv` code:
+
+```nim
+var
+  rows: seq[FreqRow]
+  strm = newStringStream(content)
+  p: CsvParser
+p.open(strm, "tmp.csv")
+p.readHeaderRow()
+while p.readRow():
+  rows.add FreqRow(
+    word: p.row[0],
+    count: parseInt(p.row[1])
+  )
+p.close()
+```
+
+## Prase Hooks
+
+Some times the data you get from csv file is not quite the format you are looking for. You can define your own `parseHook` function to parse any data.
+
+```nim
+let csvData = """
+country,budget
+US,$2000
+GB,$1000
+DE,$1000
+"""
+
+type
+  Money = uint64 # in cents
+
+  CountryMoney = object
+    country: string
+    budget: Money
+
+proc parseHook(p: ParseContext, v: var Money) =
+  inc p.i # skip the $
+  var num: int
+  p.parseHook(num)
+  v = num.uint64 * 100 # in cents
+
+var rows = csvData.fromCsv(seq[CountryMoney])
+```
+
+## Dump Hooks
+
+Just like parse hooks some times the data you want int a csv file is not quite the format your objects are. You can define your own `dumpHook` function to output your data into any format.
+
+```nim
+proc dumpHook(p: PrintContext, v: Money) =
+  # read teh %
+  p.data.add "$"
+  p.data.add $(v div 100)
+
+echo rows.toCsv()
 ```
