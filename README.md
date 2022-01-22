@@ -110,10 +110,10 @@ var rows = csvData.fromCsv(seq[CountryMoney])
 Just like with parse hooks, sometimes the format you want to write to a csv file is not quite the format your objects are. You can define your own `dumpHook` function to output your data in any format.
 
 ```nim
-proc dumpHook(p: PrintContext, v: Money) =
+proc dumpHook(d: DumpContext, v: Money) =
   # read teh %
-  p.data.add "$"
-  p.data.add $(v div 100)
+  d.data.add "$"
+  d.data.add $(v div 100)
 
 echo rows.toCsv()
 ```
