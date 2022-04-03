@@ -8,7 +8,7 @@ type SpellRow = object
   misspelling: string
   kind: string
   correction: string
-var spellRows = tabby.formCSV($readFile("eng.spell.csv"), seq[SpellRow])
+var spellRows = tabby.fromCsv($readFile("eng.spell.csv"), seq[SpellRow])
 for s in spellRows:
   spelling[s.misspelling] = s.correction
 
@@ -17,7 +17,7 @@ var scores: CritBitTree[int]
 type FreqRow = object
   word: string
   count: int
-var freqRows = tabby.formCSV($readFile("eng.freq.csv"), seq[FreqRow])
+var freqRows = tabby.fromCsv($readFile("eng.freq.csv"), seq[FreqRow])
 for s in freqRows:
   scores[s.word] = s.count
 
