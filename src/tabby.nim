@@ -197,39 +197,39 @@ proc fromCsvGuess*[T](
 
   return data.fromCsv(objType, header, hasHeader, lineEnd, separator)
 
-type PrintContext* = ref object
+type DumpContext* = ref object
   header*: seq[string]
   data*: string
   lineEnd*: string
   separator*: string
   quote*: char
 
-proc dumpHook*(p: PrintContext, v: string) =
+proc dumpHook*(d: DumpContext, v: string) =
   var needsQuote = false
   for c in v:
     if c in {' ', '\t', '\n', '\r', '\\', ',', '\'', '"'}:
       needsQuote = true
       break
   if needsQuote:
-    p.data.add p.quote
+    d.data.add d.quote
     for c in v:
       case c:
-      of '\\': p.data.add r"\\"
-      of '\b': p.data.add r"\b"
-      of '\f': p.data.add r"\f"
-      of '\n': p.data.add r"\n"
-      of '\r': p.data.add r"\r"
-      of '\t': p.data.add r"\t"
-      of '"': p.data.add r"\"""
-      of '\'': p.data.add r"\'"
+      of '\\': d.data.add r"\\"
+      of '\b': d.data.add r"\b"
+      of '\f': d.data.add r"\f"
+      of '\n': d.data.add r"\n"
+      of '\r': d.data.add r"\r"
+      of '\t': d.data.add r"\t"
+      of '"': d.data.add r"\"""
+      of '\'': d.data.add r"\'"
       else:
-        p.data.add c
-    p.data.add p.quote
+        d.data.add c
+    d.data.add d.quote
   else:
-    p.data.add v
+    d.data.add v
 
-proc dumpHook*[T](p: PrintContext, v: T) =
-  p.data.add $v
+proc dumpHook*[T](d: DumpContext, v: T) =
+  d.data.add $v
 
 proc toCsv*[T](
   data: seq[T],
@@ -242,38 +242,38 @@ proc toCsv*[T](
   ## Writes out data seq as a CSV.
   ## * header - use this header to write fields in specific order.
   ## * hasHeader - should header row be written.
-  var p = PrintContext()
-  p.header = header
-  p.lineEnd = lineEnd
-  p.separator = separator
-  p.quote = quote
+  var d = DumpContext()
+  d.header = header
+  d.lineEnd = lineEnd
+  d.separator = separator
+  d.quote = quote
 
-  if p.header.len == 0:
+  if d.header.len == 0:
     for name, field in T().fieldPairs:
-      p.header.add(name)
+      d.header.add(name)
 
   if hasHeader:
-    for name in p.header:
-      p.dumpHook(name)
-      p.data.add p.separator
-    p.data.removeSuffix(p.separator)
-    p.data.add(p.lineEnd)
+    for name in d.header:
+      d.dumpHook(name)
+      d.data.add d.separator
+    d.data.removeSuffix(d.separator)
+    d.data.add(d.lineEnd)
 
-  doAssert p.header.len != 0
+  doAssert d.header.len != 0
 
   for row in data:
-    for headerName in p.header:
+    for headerName in d.header:
       var found = false
       for name, field in row.fieldPairs:
         if headerName == name:
-          p.dumpHook(field)
-          p.data.add p.separator
+          d.dumpHook(field)
+          d.data.add d.separator
           found = true
           break
       if not found:
-        p.data.add p.separator
+        d.data.add d.separator
 
-    p.data.removeSuffix(p.separator)
-    p.data.add(p.lineEnd)
+    d.data.removeSuffix(d.separator)
+    d.data.add(d.lineEnd)
 
-  return p.data
+  return d.data
