@@ -77,9 +77,9 @@ tabby ............................ 134.951 ms    141.897 ms    ±7.301   x100
 parsecsv ......................... 129.861 ms    136.086 ms    ±7.026   x100
 ```
 
-## Prase Hooks
+## Parse Hooks
 
-Some times the data you get from csv file is not quite the format you are looking for. You can define your own `parseHook` function to parse any data.
+Sometimes the data you get from a csv file is not quite in the format you are looking for. You can define your own `parseHook` function to parse any data.
 
 ```nim
 let csvData = """
@@ -107,13 +107,13 @@ var rows = csvData.fromCsv(seq[CountryMoney])
 
 ## Dump Hooks
 
-Just like parse hooks some times the data you want int a csv file is not quite the format your objects are. You can define your own `dumpHook` function to output your data into any format.
+Just like with parse hooks, sometimes the format you want to write to a csv file is not quite the format your objects are. You can define your own `dumpHook` function to output your data in any format.
 
 ```nim
-proc dumpHook(p: PrintContext, v: Money) =
+proc dumpHook(d: DumpContext, v: Money) =
   # read teh %
-  p.data.add "$"
-  p.data.add $(v div 100)
+  d.data.add "$"
+  d.data.add $(v div 100)
 
 echo rows.toCsv()
 ```

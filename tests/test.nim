@@ -294,7 +294,7 @@ proc parseHook(p: ParseContext, v: var Money) =
 
 var rows = csvData.fromCsv(seq[CountryMoney])
 
-proc dumpHook(p: PrintContext, v: Money) =
+proc dumpHook(p: DumpContext, v: Money) =
   # read teh %
   p.data.add "$"
   p.data.add $(v div 100)
