@@ -10,9 +10,42 @@ type ParseContext* = ref object
   lineEnd*: string
   separator*: string
 
-template error(msg: string, i: int) =
+template fieldPairs3*(x: untyped): untyped =
+  when compiles(x[]):
+    x[].fieldPairs
+  else:
+    x.fieldPairs
+
+proc hasStringAt(s: string, at: int, other: string): bool =
+  for i, c in other:
+    if s[at + i] != c:
+      return false
+  return true
+
+proc error(p: ParseContext, msg: string) =
   ## Shortcut to raise an exception.
-  raise newException(TabbyError, msg & " At offset: " & $i)
+  block:
+    var
+      at = 0
+      atLine = 0
+      line = 1
+      column = 1
+    while at < p.i:
+      if p.data.hasStringAt(at, p.lineEnd):
+        inc line
+        atLine = at + 1
+        column = 1
+      inc column
+      inc at
+    var endLine = at
+    while endLine < p.data.len:
+      if p.data.hasStringAt(endLine, p.lineEnd):
+        dec endLine
+        break
+      inc endLine
+    echo p.data[atLine .. endLine].replace('\t', ' ')
+    echo " ".repeat(column-2) & "^"
+    raise newException(TabbyError, msg & " At line: " & $line & " column: " & $column)
 
 # proc atlineEnd(p: ParseContext): bool =
 #   ## Tests if the parser context is at a new line.
@@ -46,11 +79,11 @@ proc skipSep(p: ParseContext) =
     p.i += p.separator.len
   else:
     if p.i >= p.data.len:
-      error(&"Failed to parse, end of data reached.", p.i)
+      p.error(&"Failed to parse, end of data reached.")
     else:
-      error(&"Failed to parse, separator expected, got: {p.data[p.i]}.", p.i)
+      p.error(&"Failed to parse, separator expected, got: {p.data[p.i]}.")
 
-proc parseHook*(p: ParseContext, v: var string) =
+proc parseHook*(p: ParseContext, name: string, v: var string) =
   ## Parse hook for string.
   let start = p.i
   if p.data[p.i] in {'"', '\''}:
@@ -81,19 +114,28 @@ proc parseHook*(p: ParseContext, v: var string) =
       inc p.i
     v = p.data[start ..< p.i]
 
-proc parseHook*(p: ParseContext, v: var SomeInteger) =
+proc parseHook*(p: ParseContext, name: string, v: var SomeInteger) =
   ## Parse hook for integer.
   var num: int
   let chars = parseutils.parseInt(p.data, num, p.i)
   if chars == 0:
-    error("Failed to parse a integer.", p.i)
+    p.error(&"Failed to parse a \"{name}\" as integer.")
   p.i += chars
   v = num
 
-proc parseHook*(p: ParseContext, v: var bool) =
+proc parseHook*(p: ParseContext, name: string, v: var SomeFloat) =
+  ## Parse hook for integer.
+  var num: int
+  let chars = parseutils.parseFloat(p.data, num, p.i)
+  if chars == 0:
+    p.error(&"Failed to parse a \"{name}\" as float.")
+  p.i += chars
+  v = num
+
+proc parseHook*(p: ParseContext, name: string, v: var bool) =
   ## Parse hook for boolean.
   var str: string
-  p.parseHook(str)
+  p.parseHook(name, str)
   v = str.toLowerAscii() == "true"
 
 proc fromCsvFast*[T](
@@ -117,8 +159,8 @@ proc fromCsvFast*[T](
 
   while p.i < p.data.len:
     var currentRow = T()
-    for name, field in currentRow.fieldPairs:
-      parseHook(p, field)
+    for name, field in currentRow.fieldPairs3:
+      parseHook(p, name, field)
       if p.i == p.data.len:
         result.add(currentRow)
         return
@@ -150,7 +192,7 @@ proc fromCsv*[T](
     while not p.isNext(p.lineEnd):
       var name: string
       p.skipSpaces()
-      p.parseHook(name)
+      p.parseHook("header", name)
       p.skipSpaces()
       if not userHeader:
         p.header.add(name)
@@ -158,18 +200,20 @@ proc fromCsv*[T](
     p.skipLine()
   else:
     if not userHeader:
-      for name, field in T().fieldPairs:
+      for name, field in T().fieldPairs3:
         p.header.add(name)
 
   doAssert p.header.len != 0
 
+  echo p.header
+
   while p.i < p.data.len:
     var currentRow = T()
     for headerName in p.header:
-      for name, field in currentRow.fieldPairs:
+      for name, field in currentRow.fieldPairs3:
         if headerName == name:
           p.skipSpaces()
-          parseHook(p, field)
+          p.parseHook(name, field)
           p.skipSpaces()
           if p.i == p.data.len:
             result.add(currentRow)
@@ -249,7 +293,7 @@ proc toCsv*[T](
   d.quote = quote
 
   if d.header.len == 0:
-    for name, field in T().fieldPairs:
+    for name, field in T().fieldPairs3:
       d.header.add(name)
 
   if hasHeader:
@@ -264,7 +308,7 @@ proc toCsv*[T](
   for row in data:
     for headerName in d.header:
       var found = false
-      for name, field in row.fieldPairs:
+      for name, field in row.fieldPairs3:
         if headerName == name:
           d.dumpHook(field)
           d.data.add d.separator
