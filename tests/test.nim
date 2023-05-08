@@ -286,10 +286,10 @@ type
     country: string
     budget: Money
 
-proc parseHook(p: ParseContext, v: var Money) =
+proc parseHook(p: ParseContext, name: string, v: var Money) =
   inc p.i # skip the $
   var num: int
-  p.parseHook(num)
+  p.parseHook(name, num)
   v = num.uint64 * 100 # in cents
 
 var rows = csvData.fromCsv(seq[CountryMoney])
