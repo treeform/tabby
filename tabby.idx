@@ -1,0 +1,14 @@
+TabbyError	tabby.html#TabbyError	tabby: TabbyError	
+ParseContext	tabby.html#ParseContext	tabby: ParseContext	
+fieldPairs3	tabby.html#fieldPairs3.t,untyped	tabby: fieldPairs3(x: untyped): untyped	
+parseHook	tabby.html#parseHook,ParseContext,string,string	tabby: parseHook(p: ParseContext; name: string; v: var string)	
+parseHook	tabby.html#parseHook,ParseContext,string,SomeInteger	tabby: parseHook(p: ParseContext; name: string; v: var SomeInteger)	
+parseHook	tabby.html#parseHook,ParseContext,string,SomeFloat	tabby: parseHook(p: ParseContext; name: string; v: var SomeFloat)	
+parseHook	tabby.html#parseHook,ParseContext,string,bool	tabby: parseHook(p: ParseContext; name: string; v: var bool)	
+fromCsvFast	tabby.html#fromCsvFast,string,type[seq[T]],string,string	tabby: fromCsvFast[T](data: string; objType: type[seq[T]]; hasHeader = true;\n               lineEnd = &quot;\n&quot;; separator = &quot;,&quot;): seq[T]	
+fromCsv	tabby.html#fromCsv,string,type[seq[T]],string,string	tabby: fromCsv[T](data: string; objType: type[seq[T]]; header = newSeq[string]();\n           hasHeader = true; lineEnd = &quot;\n&quot;; separator = &quot;,&quot;): seq[T]	
+fromCsvGuess	tabby.html#fromCsvGuess,string,type[seq[T]]	tabby: fromCsvGuess[T](data: string; objType: type[seq[T]]; header = newSeq[string]();\n                hasHeader = true): seq[T]	
+DumpContext	tabby.html#DumpContext	tabby: DumpContext	
+dumpHook	tabby.html#dumpHook,DumpContext,string	tabby: dumpHook(d: DumpContext; v: string)	
+dumpHook	tabby.html#dumpHook,DumpContext,T	tabby: dumpHook[T](d: DumpContext; v: T)	
+toCsv	tabby.html#toCsv,seq[T],string,string,char	tabby: toCsv[T](data: seq[T]; header = newSeq[string](); hasHeader = true;\n         lineEnd = &quot;\n&quot;; separator = &quot;,&quot;; quote = &apos;\&quot;&apos;): string	
