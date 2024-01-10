@@ -1,4 +1,4 @@
-version     = "0.5.0"
+version     = "0.6.0"
 author      = "Andre von Houck"
 description = "Direct to object CSV/TSV/tabulated data parser with hooks."
 license     = "MIT"
