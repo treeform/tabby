@@ -219,7 +219,7 @@ block:
 
 block:
   # Crazy spaces between tokens.
-  let csvData = "  word :~: count-->    the :~: 23135851162     -->"
+  let csvData = "  word :~: count-->    the:~: 23135851162     -->"
 
   type FreqRow = object
     word: string
@@ -231,7 +231,6 @@ block:
   doAssert rows.len == 1
   doAssert rows[0].word == "the"
   doAssert rows[0].count == 23135851162
-
 
 block:
   # Missing last new line.
@@ -268,8 +267,6 @@ block:
     doAssert rows[0].word == "the"
     doAssert rows[0].count == 23135851162
 
-
-
 # Prase and dump hooks
 
 let csvData = """
@@ -299,14 +296,12 @@ proc dumpHook(p: DumpContext, v: Money) =
   p.data.add "$"
   p.data.add $(v div 100)
 
-echo rows.toCsv()
 doAssert rows.toCsv() == """
 country,budget
 US,$2000
 GB,$1000
 DE,$1000
 """
-
 
 block:
   # One time to read two different formats:
@@ -324,15 +319,13 @@ Mar1,foo
 Mar2,bar
 Mar3,baz
 """
-  echo csvData.fromCsv(seq[Row])
-
-  let csvData2 = """
+  let rows = csvData.fromCsv(seq[Row])
+  doAssert rows.toCsv() == """
 id,color,date,text,enabled
-0,red,Mar1,foo,true
-1,blue,Mar2,bar,false
-2,green,Mar3,baz,true
+0,,Mar1,foo,false
+0,,Mar2,bar,false
+0,,Mar3,baz,false
 """
-  echo csvData2.fromCsv(seq[Row])
 
 block:
   # Duplicate names.
@@ -350,12 +343,74 @@ Mar1,foo
 Mar2,bar
 Mar3,baz
 """
-  echo csvData.fromCsv(seq[Row], header = @["date1", "text1"])
+  let rows = csvData.fromCsv(seq[Row], header = @["date1", "text1"])
 
-  let csvData2 = """
-iden,date,text,date,text
-0,Mar1,foo,Dec20,dasher
-1,Mar2,bar,Dec21,dancer
-2,Mar3,baz,Dec22,prancer
+  doAssert rows.toCsv() == """
+id,date1,text1,date2,text2
+0,Mar1,foo,,
+0,Mar2,bar,,
+0,Mar3,baz,,
 """
-  echo csvData2.fromCsv(seq[Row], header = @["id", "date1", "text1", "date2", "text2"])
+
+block:
+  # Ignore extra spaces.
+  let csvData = """
+word, count
+ the,23135851162
+of , 13151942776
+   and  , 12997637966
+"""
+
+  type FreqRow = object
+    word: string
+    count: int
+
+  var rows = tabby.fromCsv(csvData, seq[FreqRow])
+  doAssert rows.toCsv() == """
+word,count
+the,23135851162
+of,13151942776
+and,12997637966
+"""
+
+block:
+  # Unix style escapes
+  let csvData = """
+name,count
+John Smith,1
+"John Smith",2
+"\rJohn\tSmith\n",3
+"""
+
+  type NameRow = object
+    name: string
+    count: int
+
+  var rows = tabby.fromCsv(csvData, seq[NameRow])
+  doAssert rows.toCsv() == """
+name,count
+"John Smith",1
+"John Smith",2
+"\rJohn\tSmith\n",3
+"""
+
+block:
+  # CSV style escapes "" and ''
+  let csvData = """
+name,count
+'John''s Book',1
+"John's Book",2
+"John ""Big"" Smith",3
+"""
+
+  type NameRow = object
+    name: string
+    count: int
+
+  var rows = tabby.fromCsv(csvData, seq[NameRow])
+  doAssert rows.toCsv() == """
+name,count
+"John\'s Book",1
+"John\'s Book",2
+"John \"Big\" Smith",3
+"""

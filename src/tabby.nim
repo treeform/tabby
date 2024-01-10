@@ -90,8 +90,16 @@ proc parseHook*(p: ParseContext, name: string, v: var string) =
     # "quoted string"
     let quote = p.data[p.i]
     inc p.i
-    while p.i < p.data.len and p.data[p.i] != quote:
-      if p.data[p.i] == '\\':
+    while p.i < p.data.len:
+      if p.data[p.i] == quote:
+        # handle escaped double quote "" or ''
+        if p.i + 1 < p.data.len and p.data[p.i + 1] == quote:
+          inc p.i
+          v.add quote
+          inc p.i
+        else:
+          break
+      elif p.data[p.i] == '\\':
         # handle escape quote
         inc p.i
         let c = p.data[p.i]
@@ -110,9 +118,9 @@ proc parseHook*(p: ParseContext, name: string, v: var string) =
     inc p.i
   else:
     # plain string
-    while p.i < p.data.len and not (p.isNext(p.separator) or p.isNext(p.lineEnd) or p.isNext(" ")):
+    while p.i < p.data.len and not (p.isNext(p.separator) or p.isNext(p.lineEnd)):
       inc p.i
-    v = p.data[start ..< p.i]
+    v = p.data[start ..< p.i].strip()
 
 proc parseHook*(p: ParseContext, name: string, v: var SomeInteger) =
   ## Parse hook for integer.
@@ -195,7 +203,7 @@ proc fromCsv*[T](
       p.parseHook("header", name)
       p.skipSpaces()
       if not userHeader:
-        p.header.add(name)
+        p.header.add(name.strip())
       p.skipSep()
     p.skipLine()
   else:
@@ -204,8 +212,6 @@ proc fromCsv*[T](
         p.header.add(name)
 
   doAssert p.header.len != 0
-
-  echo p.header
 
   while p.i < p.data.len:
     var currentRow = T()
@@ -220,6 +226,7 @@ proc fromCsv*[T](
             return
           p.skipSep()
           break
+
     result.add(currentRow)
     p.skipLine()
 
