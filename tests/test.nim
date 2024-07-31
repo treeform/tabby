@@ -183,7 +183,7 @@ block:
   #doAssert rows.toCsv(hasHeader = false, quote='\'') == csvData
 
 block:
-  # Prase windows line endings.
+  # Parse windows line endings.
   let csvData = "word\tcount\r\nthe\t23135851162\r\n"
 
   type FreqRow = object
@@ -201,7 +201,7 @@ block:
 
 
 block:
-  # Prase crazy separator and crazy line endings.
+  # Parse crazy separator and crazy line endings.
   let csvData = "word:~:count-->the:~:23135851162-->"
 
   type FreqRow = object
@@ -267,7 +267,7 @@ block:
     doAssert rows[0].word == "the"
     doAssert rows[0].count == 23135851162
 
-# Prase and dump hooks
+# Parse and dump hooks
 
 let csvData = """
 country,budget
