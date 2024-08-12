@@ -1,9 +1,10 @@
-# Fast direct CSV/TCV parser for nim.
-import strutils, parseutils, strformat
+# Fast direct CSV/TSV parser for nim.
+import std/[strutils, parseutils, strformat]
 
 type TabbyError* = object of ValueError
 
 type ParseContext* = ref object
+  ## Context for parsing CSV/TSV.
   i*: int
   header*: seq[string]
   data*: string
@@ -11,12 +12,14 @@ type ParseContext* = ref object
   separator*: string
 
 template fieldPairs3*(x: untyped): untyped =
+  ## Helper to iterate over fields of ref object.
   when compiles(x[]):
     x[].fieldPairs
   else:
     x.fieldPairs
 
 proc hasStringAt(s: string, at: int, other: string): bool =
+  ## Tests if the string has another string at a specific position.
   for i, c in other:
     if s[at + i] != c:
       return false
@@ -46,10 +49,6 @@ proc error(p: ParseContext, msg: string) =
     echo p.data[atLine .. endLine].replace('\t', ' ')
     echo " ".repeat(column-2) & "^"
     raise newException(TabbyError, msg & " At line: " & $line & " column: " & $column)
-
-# proc atlineEnd(p: ParseContext): bool =
-#   ## Tests if the parser context is at a new line.
-#   return p.data[p.i] != '\n'
 
 proc isNext(p: ParseContext, str: string): bool =
   ## Tests if the a str comes next.
@@ -123,7 +122,7 @@ proc parseHook*(p: ParseContext, name: string, v: var string) =
     v = p.data[start ..< p.i].strip()
 
 proc parseHook*(p: ParseContext, name: string, v: var SomeInteger) =
-  ## Parse hook for integer.
+  ## Parse hook for integer number.
   var num: int
   let chars = parseutils.parseInt(p.data, num, p.i)
   if chars == 0:
@@ -132,8 +131,8 @@ proc parseHook*(p: ParseContext, name: string, v: var SomeInteger) =
   v = num
 
 proc parseHook*(p: ParseContext, name: string, v: var SomeFloat) =
-  ## Parse hook for integer.
-  var num: int
+  ## Parse hook for float point number.
+  var num: float
   let chars = parseutils.parseFloat(p.data, num, p.i)
   if chars == 0:
     p.error(&"Failed to parse a \"{name}\" as float.")
@@ -145,6 +144,12 @@ proc parseHook*(p: ParseContext, name: string, v: var bool) =
   var str: string
   p.parseHook(name, str)
   v = str.toLowerAscii() == "true"
+
+proc parseHook*[T: enum](p: ParseContext, name: string, v: var T) =
+  ## Parse hook for boolean.
+  var str: string
+  p.parseHook(name, str)
+  v = parseEnum[T](str)
 
 proc fromCsvFast*[T](
   data: string,
@@ -219,11 +224,12 @@ proc fromCsv*[T](
       for name, field in currentRow.fieldPairs3:
         if headerName == name:
           p.skipSpaces()
-          p.parseHook(name, field)
-          p.skipSpaces()
-          if p.i == p.data.len:
-            result.add(currentRow)
-            return
+          if not p.isNext(p.separator):
+            p.parseHook(name, field)
+            p.skipSpaces()
+            if p.i == p.data.len:
+              result.add(currentRow)
+              return
           p.skipSep()
           break
 
