@@ -1,4 +1,4 @@
-nimTitle	tabby	tabby.html	module src/tabby		0
+nimTitle	tabby	tabby.html	module tabby		0
 nim	TabbyError	tabby.html#TabbyError	object TabbyError		4
 nim	ParseContext	tabby.html#ParseContext	type ParseContext		6
 nim	fieldPairs3	tabby.html#fieldPairs3.t,untyped	template fieldPairs3(x: untyped): untyped		14
